@@ -60,7 +60,6 @@ export async function handleUpdateSubscription(
     }
     res.json({ data, error: null });
   } catch (err) {
-    console.error("PATCH /subscriptions error:", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -80,7 +79,6 @@ export async function handleDeleteSubscription(
     }
     res.json({ data: { message: "Deleted successfully" }, error: null });
   } catch (err) {
-    console.error("DELETE /subscriptions error:", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }

@@ -1,16 +1,17 @@
-import { pool } from '../../config/db';
-import { z } from 'zod';
+import { pool } from "../../config/db";
+import { z } from "zod";
 
 export const CreateSubscriptionSchema = z.object({
   name: z.string().min(1),
   subtitle: z.string().optional(),
   amount: z.number().positive(),
-  billingCycle: z.enum(['monthly', 'yearly']),
+  billingCycle: z.enum(["monthly", "yearly"]),
   nextBillingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   category: z.string().min(1),
-  badge: z.enum(['Auto', 'Fixed', 'Elite', 'Manual']).nullable().optional(),
+  badge: z.enum(["Auto", "Fixed", "Elite", "Manual"]).nullable().optional(),
   logoInitial: z.string().max(1).optional(),
   logoColor: z.string().optional(),
+  paymentType: z.enum(["UPI", "Cash", "Credit", "Debit"]).nullable().optional(),
 });
 
 export const UpdateSubscriptionSchema = CreateSubscriptionSchema.partial();
@@ -19,7 +20,7 @@ export type CreateSubscriptionInput = z.infer<typeof CreateSubscriptionSchema>;
 export type UpdateSubscriptionInput = z.infer<typeof UpdateSubscriptionSchema>;
 
 function toMonthly(amount: number, cycle: string): number {
-  return cycle === 'yearly' ? amount / 12 : amount;
+  return cycle === "yearly" ? amount / 12 : amount;
 }
 
 function mapRow(row: Record<string, unknown>) {
@@ -34,20 +35,22 @@ function mapRow(row: Record<string, unknown>) {
     badge: row.badge,
     logoInitial: row.logo_initial,
     logoColor: row.logo_color,
+    paymentType: row.payment_type,
   };
 }
 
 export async function getSubscriptions(userId: string) {
   const result = await pool.query(
     `SELECT * FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC`,
-    [userId]
+    [userId],
   );
 
   const rows = result.rows;
 
   const totalMonthly = rows.reduce(
-    (sum: number, r: Record<string, unknown>) => sum + toMonthly(Number(r.amount), r.billing_cycle as string),
-    0
+    (sum: number, r: Record<string, unknown>) =>
+      sum + toMonthly(Number(r.amount), r.billing_cycle as string),
+    0,
   );
 
   const dailyImpact = totalMonthly / 30;
@@ -68,7 +71,10 @@ export async function getSubscriptions(userId: string) {
     categoryMap[cat].push(mapRow(row as Record<string, unknown>));
   }
 
-  const categories = Object.entries(categoryMap).map(([label, items]) => ({ label, items }));
+  const categories = Object.entries(categoryMap).map(([label, items]) => ({
+    label,
+    items,
+  }));
 
   return {
     totalMonthly: Math.round(totalMonthly * 100) / 100,
@@ -78,11 +84,14 @@ export async function getSubscriptions(userId: string) {
   };
 }
 
-export async function createSubscription(userId: string, input: CreateSubscriptionInput) {
+export async function createSubscription(
+  userId: string,
+  input: CreateSubscriptionInput,
+) {
   const result = await pool.query(
     `INSERT INTO subscriptions
-      (user_id, name, subtitle, amount, billing_cycle, next_billing_date, category, badge, logo_initial, logo_color)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      (user_id, name, subtitle, amount, billing_cycle, next_billing_date, category, badge, logo_initial, logo_color, payment_type)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
      RETURNING *`,
     [
       userId,
@@ -95,7 +104,8 @@ export async function createSubscription(userId: string, input: CreateSubscripti
       input.badge ?? null,
       input.logoInitial ?? null,
       input.logoColor ?? null,
-    ]
+      input.paymentType ?? null,
+    ],
   );
   return mapRow(result.rows[0]);
 }
@@ -103,11 +113,11 @@ export async function createSubscription(userId: string, input: CreateSubscripti
 export async function updateSubscription(
   userId: string,
   id: string,
-  input: UpdateSubscriptionInput
+  input: UpdateSubscriptionInput,
 ) {
   const check = await pool.query(
-    'SELECT id FROM subscriptions WHERE id = $1 AND user_id = $2',
-    [id, userId]
+    "SELECT id FROM subscriptions WHERE id = $1 AND user_id = $2",
+    [id, userId],
   );
   if (check.rowCount === 0) return null;
 
@@ -116,15 +126,16 @@ export async function updateSubscription(
   let idx = 1;
 
   const fieldMap: Record<string, string> = {
-    name: 'name',
-    subtitle: 'subtitle',
-    amount: 'amount',
-    billingCycle: 'billing_cycle',
-    nextBillingDate: 'next_billing_date',
-    category: 'category',
-    badge: 'badge',
-    logoInitial: 'logo_initial',
-    logoColor: 'logo_color',
+    name: "name",
+    subtitle: "subtitle",
+    amount: "amount",
+    billingCycle: "billing_cycle",
+    nextBillingDate: "next_billing_date",
+    category: "category",
+    badge: "badge",
+    logoInitial: "logo_initial",
+    logoColor: "logo_color",
+    paymentType: "payment_type",
   };
 
   for (const [key, col] of Object.entries(fieldMap)) {
@@ -139,16 +150,19 @@ export async function updateSubscription(
 
   values.push(id, userId);
   const result = await pool.query(
-    `UPDATE subscriptions SET ${fields.join(', ')} WHERE id = $${idx} AND user_id = $${idx + 1} RETURNING *`,
-    values
+    `UPDATE subscriptions SET ${fields.join(", ")} WHERE id = $${idx} AND user_id = $${idx + 1} RETURNING *`,
+    values,
   );
   return mapRow(result.rows[0]);
 }
 
-export async function deleteSubscription(userId: string, id: string): Promise<boolean> {
+export async function deleteSubscription(
+  userId: string,
+  id: string,
+): Promise<boolean> {
   const result = await pool.query(
-    'DELETE FROM subscriptions WHERE id = $1 AND user_id = $2',
-    [id, userId]
+    "DELETE FROM subscriptions WHERE id = $1 AND user_id = $2",
+    [id, userId],
   );
   return (result.rowCount ?? 0) > 0;
 }

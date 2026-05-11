@@ -16,14 +16,6 @@ export async function authenticate(
   }
 
   const token = authHeader.split(" ")[1];
-  console.error(
-    "[auth] header:",
-    authHeader,
-    "| token length:",
-    token?.length,
-    "| token prefix:",
-    token?.slice(0, 20),
-  );
 
   const { data, error } = await supabase.auth.getUser(token);
 
