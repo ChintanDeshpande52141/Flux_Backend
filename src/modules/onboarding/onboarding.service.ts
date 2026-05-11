@@ -71,6 +71,25 @@ export async function saveOnboardingData(
       userId,
     ],
   );
+
+  // Auto-derive user_budgets from onboarding data
+  const monthBudget = Math.max(0, data.total_income - data.savings_goal);
+  const weekBudget = Math.round((monthBudget / 4) * 100) / 100;
+  const dailyLimit = Math.round((monthBudget / 30) * 100) / 100;
+
+  const updateResult = await pool.query(
+    `UPDATE user_budgets
+     SET month_budget = $1, week_budget = $2, daily_limit = $3, updated_at = NOW()
+     WHERE user_id = $4`,
+    [monthBudget, weekBudget, dailyLimit, userId],
+  );
+  if ((updateResult.rowCount ?? 0) === 0) {
+    await pool.query(
+      `INSERT INTO user_budgets (user_id, month_budget, week_budget, daily_limit)
+       VALUES ($1, $2, $3, $4)`,
+      [userId, monthBudget, weekBudget, dailyLimit],
+    );
+  }
 }
 
 export async function updateOnboardingData(
