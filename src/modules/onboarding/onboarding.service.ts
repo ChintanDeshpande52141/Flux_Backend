@@ -131,4 +131,38 @@ export async function updateOnboardingData(
     `UPDATE users SET ${updates.join(", ")} WHERE id = $${paramIndex}`,
     values,
   );
+
+  // Re-sync user_budgets whenever income or savings_goal changes
+  if (data.total_income !== undefined || data.savings_goal !== undefined) {
+    const [userRow, subsRow] = await Promise.all([
+      pool.query("SELECT total_income, savings_goal FROM users WHERE id = $1", [
+        userId,
+      ]),
+      pool.query(
+        `SELECT COALESCE(SUM(
+           CASE WHEN billing_cycle = 'yearly' THEN amount / 12.0 ELSE amount END
+         ), 0) AS total_monthly
+         FROM subscriptions WHERE user_id = $1`,
+        [userId],
+      ),
+    ]);
+    const income = Number(userRow.rows[0]?.total_income ?? 0);
+    const savings = Number(userRow.rows[0]?.savings_goal ?? 0);
+    const bills = Number(subsRow.rows[0]?.total_monthly ?? 0);
+    const monthBudget = Math.max(0, income - savings - bills);
+    const weekBudget = Math.round((monthBudget / 4) * 100) / 100;
+    const dailyLimit = Math.round((monthBudget / 30) * 100) / 100;
+    const update = await pool.query(
+      `UPDATE user_budgets SET month_budget = $1, week_budget = $2, daily_limit = $3, updated_at = NOW()
+       WHERE user_id = $4`,
+      [monthBudget, weekBudget, dailyLimit, userId],
+    );
+    if ((update.rowCount ?? 0) === 0) {
+      await pool.query(
+        `INSERT INTO user_budgets (user_id, month_budget, week_budget, daily_limit)
+         VALUES ($1, $2, $3, $4)`,
+        [userId, monthBudget, weekBudget, dailyLimit],
+      );
+    }
+  }
 }

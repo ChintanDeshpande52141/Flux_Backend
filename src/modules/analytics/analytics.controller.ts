@@ -5,6 +5,7 @@ import {
   getCreditHealth,
   getSpendingPulse,
   getSpendingAnalysis,
+  getTotals,
 } from "./analytics.service";
 
 export async function handleSafeToSpend(
@@ -82,6 +83,16 @@ export async function handleSpendingAnalysis(
     res.json({ data, error: null });
   } catch (err) {
     console.error("GET /analytics/spending-analysis error:", err);
+    res.status(500).json({ data: null, error: "Internal server error" });
+  }
+}
+
+export async function handleTotals(req: Request, res: Response): Promise<void> {
+  try {
+    const data = await getTotals(req.userId);
+    res.json({ data, error: null });
+  } catch (err) {
+    console.error("GET /analytics/totals error:", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }

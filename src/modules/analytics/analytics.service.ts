@@ -50,26 +50,30 @@ export async function getSafeToSpend(
   userId: string,
   period: "weekly" | "monthly" | "yearly" = "monthly",
 ) {
-  const budgetResult = await pool.query(
-    "SELECT week_budget, month_budget, daily_limit FROM user_budgets WHERE user_id = $1",
-    [userId],
-  );
-
-  let weekBudget = Number(budgetResult.rows[0]?.week_budget ?? 0);
-  let monthBudget = Number(budgetResult.rows[0]?.month_budget ?? 0);
-  let dailyLimit = Number(budgetResult.rows[0]?.daily_limit ?? 0);
-
-  // Fall back to total_income - savings_goal if user_budgets has no record or zeroed out
-  if (weekBudget === 0 && monthBudget === 0) {
-    const userResult = await pool.query(
-      "SELECT total_income, savings_goal FROM users WHERE id = $1",
+  // Always derive live from users + subscriptions to stay in sync with any changes
+  const [userResult, subsResult] = await Promise.all([
+    pool.query("SELECT total_income, savings_goal FROM users WHERE id = $1", [
+      userId,
+    ]),
+    pool.query(
+      `SELECT COALESCE(SUM(
+         CASE WHEN billing_cycle = 'yearly' THEN amount / 12.0 ELSE amount END
+       ), 0) AS total_monthly
+       FROM subscriptions WHERE user_id = $1`,
       [userId],
-    );
-    const totalIncome = Number(userResult.rows[0]?.total_income ?? 0);
-    const savingsGoal = Number(userResult.rows[0]?.savings_goal ?? 0);
-    monthBudget = Math.max(0, totalIncome - savingsGoal);
-    weekBudget = Math.round(monthBudget / 4);
-  }
+    ),
+  ]);
+
+  const totalIncome = Number(userResult.rows[0]?.total_income ?? 0);
+  const savingsGoal = Number(userResult.rows[0]?.savings_goal ?? 0);
+  const totalMonthlyBills = Number(subsResult.rows[0]?.total_monthly ?? 0);
+
+  const monthBudget = Math.max(
+    0,
+    totalIncome - savingsGoal - totalMonthlyBills,
+  );
+  const weekBudget = Math.round(monthBudget / 4);
+  let dailyLimit = Math.round((monthBudget / 30) * 100) / 100;
 
   let budget: number;
   let start: Date;
@@ -396,4 +400,12 @@ export async function getSpendingAnalysis(userId: string) {
     avgMonthlySpending,
     insights,
   };
+}
+
+export async function getTotals(userId: string) {
+  const result = await pool.query(
+    `SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE user_id = $1`,
+    [userId],
+  );
+  return { totalTracked: Number(result.rows[0].total) };
 }
