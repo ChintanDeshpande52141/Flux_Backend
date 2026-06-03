@@ -19,17 +19,13 @@ export async function getOnboardingData(
        ON CONFLICT (id) DO NOTHING`,
       [userId, userEmail],
     );
-  } catch (error) {
-    console.error("[onboarding] Failed to ensure user exists:", error);
-  }
+  } catch (error) {}
 
   const result = await pool.query(
     `SELECT income_sources, credit_cards, total_income, savings_goal, onboarded_at
      FROM users WHERE id = $1`,
     [userId],
   );
-
-  console.log("[onboarding] Query result rowCount:", result.rowCount);
 
   if (result.rowCount === 0) return null;
 

@@ -10,16 +10,9 @@ export async function handleGetOnboarding(
   res: Response,
 ): Promise<void> {
   try {
-    console.log(
-      "[onboarding] GET - userId:",
-      req.userId,
-      "userEmail:",
-      req.userEmail,
-    );
     const data = await getOnboardingData(req.userId, req.userEmail);
     res.json({ data, error: null });
   } catch (err) {
-    console.error("GET /onboarding error:", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -32,7 +25,6 @@ export async function handleSaveOnboarding(
     await saveOnboardingData(req.userId, req.userEmail, req.body);
     res.json({ data: { success: true }, error: null });
   } catch (err) {
-    console.error("POST /onboarding error:", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -45,7 +37,6 @@ export async function handleUpdateOnboarding(
     await updateOnboardingData(req.userId, req.body);
     res.json({ data: { success: true }, error: null });
   } catch (err) {
-    console.error("PATCH /onboarding error:", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }

@@ -1,11 +1,18 @@
-import { Router } from 'express';
-import { authenticate } from '../../middleware/auth';
-import { handleGetMessages, handleSendMessage, handleGetSuggestions } from './chat.controller';
+import { Router } from "express";
+import { authenticate } from "../../middleware/auth";
+import { chatRateLimiter } from "../../middleware/rateLimiter";
+import {
+  handleGetMessages,
+  handleSendMessage,
+  handleGetSuggestions,
+  handleTestAI,
+} from "./chat.controller";
 
 export const chatRouter = Router();
 
 chatRouter.use(authenticate);
 
-chatRouter.get('/messages', handleGetMessages);
-chatRouter.post('/messages', handleSendMessage);
-chatRouter.get('/suggestions', handleGetSuggestions);
+chatRouter.get("/messages", handleGetMessages);
+chatRouter.post("/messages", chatRateLimiter, handleSendMessage);
+chatRouter.get("/suggestions", handleGetSuggestions);
+chatRouter.get("/test-ai", handleTestAI);

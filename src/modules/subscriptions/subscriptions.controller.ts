@@ -16,7 +16,6 @@ export async function handleGetSubscriptions(
     const data = await getSubscriptions(req.userId);
     res.json({ data, error: null });
   } catch (err) {
-    console.error("GET /subscriptions error:", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -34,7 +33,6 @@ export async function handleCreateSubscription(
     const data = await createSubscription(req.userId, parsed.data);
     res.status(201).json({ data, error: null });
   } catch (err) {
-    console.error("POST /subscriptions error:", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }

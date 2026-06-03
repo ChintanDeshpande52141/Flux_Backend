@@ -20,7 +20,6 @@ export async function handleSafeToSpend(
     );
     res.json({ data, error: null });
   } catch (err) {
-    console.error("GET /analytics/safe-to-spend error:", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -33,7 +32,6 @@ export async function handleSpendingVelocity(
     const data = await getSpendingVelocity(req.userId);
     res.json({ data, error: null });
   } catch (err) {
-    console.error("GET /analytics/spending-velocity error:", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -52,7 +50,6 @@ export async function handleCreditHealth(
     }
     res.json({ data, error: null });
   } catch (err) {
-    console.error("GET /analytics/credit-health error:", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -69,7 +66,6 @@ export async function handleSpendingPulse(
     );
     res.json({ data, error: null });
   } catch (err) {
-    console.error("GET /analytics/spending-pulse error:", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -82,7 +78,6 @@ export async function handleSpendingAnalysis(
     const data = await getSpendingAnalysis(req.userId);
     res.json({ data, error: null });
   } catch (err) {
-    console.error("GET /analytics/spending-analysis error:", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -92,7 +87,6 @@ export async function handleTotals(req: Request, res: Response): Promise<void> {
     const data = await getTotals(req.userId);
     res.json({ data, error: null });
   } catch (err) {
-    console.error("GET /analytics/totals error:", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
