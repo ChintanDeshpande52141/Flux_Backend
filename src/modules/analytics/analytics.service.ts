@@ -338,58 +338,58 @@ export async function getSpendingAnalysis(userId: string) {
   );
 
   const monthlyRows: { label: string; value: number }[] = [];
-  for (let i = 5; i >= 0; i--) {
-    const { start: mStart, end: mEnd } = getMonthRange(i);
-    const mResult = await pool.query(
-      `SELECT COALESCE(SUM(amount), 0) AS total FROM transactions
-       WHERE user_id = $1 AND transacted_at BETWEEN $2 AND $3`,
-      [userId, mStart.toISOString(), mEnd.toISOString()],
-    );
-    const label = mStart.toLocaleString("default", { month: "short" });
-    monthlyRows.push({
-      label,
-      value: Math.round(Number(mResult.rows[0].total)),
-    });
-  }
+  // Only show current month data, not historical data
+  const { start: mStart, end: mEnd } = getMonthRange(0);
+  const mResult = await pool.query(
+    `SELECT COALESCE(SUM(amount), 0) AS total FROM transactions
+     WHERE user_id = $1 AND transacted_at BETWEEN $2 AND $3`,
+    [userId, mStart.toISOString(), mEnd.toISOString()],
+  );
+  const label = mStart.toLocaleString("default", { month: "short" });
+  monthlyRows.push({
+    label,
+    value: Math.round(Number(mResult.rows[0].total)),
+  });
 
-  const avgMonthlySpending =
-    monthlyRows.length > 0
-      ? Math.round(
-          monthlyRows.reduce((s, r) => s + r.value, 0) / monthlyRows.length,
-        )
-      : 0;
+  const avgMonthlySpending = monthlyRows.length > 0 ? monthlyRows[0].value : 0;
 
   const insights: { id: string; title: string; body: string; type: string }[] =
     [];
 
-  const weekendSpend = dailyBreakdown
-    .filter((_, i) => i === 5 || i === 6)
-    .reduce((s, e) => s + e.value, 0);
-  const weekdayCount = dailyBreakdown.filter((_, i) => i < 5).length;
-  const weekdayAvg =
-    weekdayCount > 0
-      ? dailyBreakdown
-          .filter((_, i) => i < 5)
-          .reduce((s, e) => s + e.value, 0) / weekdayCount
-      : 0;
+  // Only generate insights with meaningful data (minimum 3 transactions)
+  const totalTransactions = catResult.rowCount || 0;
+  if (totalTransactions >= 3) {
+    const weekendSpend = dailyBreakdown
+      .filter((_, i) => i === 5 || i === 6)
+      .reduce((s, e) => s + e.value, 0);
+    const weekdayCount = dailyBreakdown.filter((_, i) => i < 5).length;
+    const weekdayAvg =
+      weekdayCount > 0
+        ? dailyBreakdown
+            .filter((_, i) => i < 5)
+            .reduce((s, e) => s + e.value, 0) / weekdayCount
+        : 0;
 
-  if (weekdayAvg > 0 && weekendSpend / 2 > weekdayAvg * 1.3) {
-    insights.push({
-      id: "1",
-      title: "Weekend Spike",
-      body: "Your spending increases significantly on weekends.",
-      type: "warning",
-    });
-  }
+    if (weekdayAvg > 0 && weekendSpend / 2 > weekdayAvg * 1.3) {
+      insights.push({
+        id: "1",
+        title: "Weekend Spike",
+        body: "Your spending increases significantly on weekends.",
+        type: "warning",
+      });
+    }
 
-  const topCat = [...categoryBreakdown].sort((a, b) => b.amount - a.amount)[0];
-  if (topCat && topCat.percent > 35) {
-    insights.push({
-      id: "2",
-      title: `High ${topCat.label} Spending`,
-      body: `${topCat.label} accounts for ${topCat.percent}% of your monthly spend.`,
-      type: "info",
-    });
+    const topCat = [...categoryBreakdown].sort(
+      (a, b) => b.amount - a.amount,
+    )[0];
+    if (topCat && topCat.percent > 35 && totalTransactions >= 5) {
+      insights.push({
+        id: "2",
+        title: `High ${topCat.label} Spending`,
+        body: `${topCat.label} accounts for ${topCat.percent}% of your monthly spend.`,
+        type: "info",
+      });
+    }
   }
 
   return {

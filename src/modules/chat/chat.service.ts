@@ -25,7 +25,7 @@ JSON SCHEMAS:
 {"intent":"update_income","amount":number,"reply":"string"}
 
 4. Question/analytics:
-{"intent":"question","queryType":"food_spending_month|food_spending_week|transport_spending_month|total_spending_month|total_spending_week|safe_to_spend|top_categories|other","reply":"string"}
+{"intent":"question","queryType":"food_spending_month|food_spending_week|food_spending_last_month|transport_spending_month|transport_spending_last_month|total_spending_month|total_spending_week|total_spending_last_month|safe_to_spend|top_categories|other","reply":"string"}
 
 EXAMPLES:
 
@@ -40,6 +40,9 @@ User: monthly netflix 299
 
 User: how much did I spend on food this month
 {"intent":"question","queryType":"food_spending_month","reply":"food_spending_month"}
+
+User: how much did I spend last month
+{"intent":"question","queryType":"total_spending_last_month","reply":"total_spending_last_month"}
 
 User: how much did I spend this week
 {"intent":"question","queryType":"total_spending_week","reply":"total_spending_week"}
@@ -465,6 +468,22 @@ export async function processUserMessage(
           parsed.reply = `You spent ₹${Number(r.rows[0].total).toLocaleString("en-IN")} on transport this month.`;
           break;
         }
+        case "food_spending_last_month": {
+          const r = await pool.query(
+            `SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=$1 AND category='Food' AND transacted_at>=date_trunc('month',CURRENT_DATE - INTERVAL '1 month') AND transacted_at<date_trunc('month',CURRENT_DATE)`,
+            [userId],
+          );
+          parsed.reply = `You spent ₹${Number(r.rows[0].total).toLocaleString("en-IN")} on food last month.`;
+          break;
+        }
+        case "transport_spending_last_month": {
+          const r = await pool.query(
+            `SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=$1 AND category='Transport' AND transacted_at>=date_trunc('month',CURRENT_DATE - INTERVAL '1 month') AND transacted_at<date_trunc('month',CURRENT_DATE)`,
+            [userId],
+          );
+          parsed.reply = `You spent ₹${Number(r.rows[0].total).toLocaleString("en-IN")} on transport last month.`;
+          break;
+        }
         case "total_spending_month": {
           const r = await pool.query(
             `SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=$1 AND transacted_at>=date_trunc('month',CURRENT_DATE)`,
@@ -479,6 +498,14 @@ export async function processUserMessage(
             [userId],
           );
           parsed.reply = `Your total spending this week is ₹${Number(r.rows[0].total).toLocaleString("en-IN")}.`;
+          break;
+        }
+        case "total_spending_last_month": {
+          const r = await pool.query(
+            `SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=$1 AND transacted_at>=date_trunc('month',CURRENT_DATE - INTERVAL '1 month') AND transacted_at<date_trunc('month',CURRENT_DATE)`,
+            [userId],
+          );
+          parsed.reply = `Your total spending last month was ₹${Number(r.rows[0].total).toLocaleString("en-IN")}.`;
           break;
         }
         case "safe_to_spend": {

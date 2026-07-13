@@ -44,47 +44,59 @@ export async function saveOnboardingData(
   userEmail: string,
   data: Omit<OnboardingData, "onboarded_at">,
 ): Promise<void> {
-  // Ensure user exists in users table
-  await pool.query(
-    `INSERT INTO users (id, email) VALUES ($1, $2)
-     ON CONFLICT (id) DO NOTHING`,
-    [userId, userEmail],
-  );
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
 
-  await pool.query(
-    `UPDATE users
-     SET income_sources = $1,
-         credit_cards = $2,
-         total_income = $3,
-         savings_goal = $4,
-         onboarded_at = NOW()
-     WHERE id = $5`,
-    [
-      JSON.stringify(data.income_sources),
-      JSON.stringify(data.credit_cards),
-      data.total_income,
-      data.savings_goal,
-      userId,
-    ],
-  );
-
-  // Auto-derive user_budgets from onboarding data
-  const monthBudget = Math.max(0, data.total_income - data.savings_goal);
-  const weekBudget = Math.round((monthBudget / 4) * 100) / 100;
-  const dailyLimit = Math.round((monthBudget / 30) * 100) / 100;
-
-  const updateResult = await pool.query(
-    `UPDATE user_budgets
-     SET month_budget = $1, week_budget = $2, daily_limit = $3, updated_at = NOW()
-     WHERE user_id = $4`,
-    [monthBudget, weekBudget, dailyLimit, userId],
-  );
-  if ((updateResult.rowCount ?? 0) === 0) {
-    await pool.query(
-      `INSERT INTO user_budgets (user_id, month_budget, week_budget, daily_limit)
-       VALUES ($1, $2, $3, $4)`,
-      [userId, monthBudget, weekBudget, dailyLimit],
+    // Ensure user exists in users table
+    await client.query(
+      `INSERT INTO users (id, email) VALUES ($1, $2)
+       ON CONFLICT (id) DO NOTHING`,
+      [userId, userEmail],
     );
+
+    await client.query(
+      `UPDATE users
+       SET income_sources = $1,
+           credit_cards = $2,
+           total_income = $3,
+           savings_goal = $4,
+           onboarded_at = NOW()
+       WHERE id = $5`,
+      [
+        JSON.stringify(data.income_sources),
+        JSON.stringify(data.credit_cards),
+        data.total_income,
+        data.savings_goal,
+        userId,
+      ],
+    );
+
+    // Auto-derive user_budgets from onboarding data
+    const monthBudget = Math.max(0, data.total_income - data.savings_goal);
+    const weekBudget = Math.round((monthBudget / 4) * 100) / 100;
+    const dailyLimit = Math.round((monthBudget / 30) * 100) / 100;
+
+    const updateResult = await client.query(
+      `UPDATE user_budgets
+       SET month_budget = $1, week_budget = $2, daily_limit = $3, updated_at = NOW()
+       WHERE user_id = $4`,
+      [monthBudget, weekBudget, dailyLimit, userId],
+    );
+    if ((updateResult.rowCount ?? 0) === 0) {
+      await client.query(
+        `INSERT INTO user_budgets (user_id, month_budget, week_budget, daily_limit)
+         VALUES ($1, $2, $3, $4)`,
+        [userId, monthBudget, weekBudget, dailyLimit],
+      );
+    }
+
+    await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
   }
 }
 
