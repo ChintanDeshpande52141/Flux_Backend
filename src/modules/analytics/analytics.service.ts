@@ -1,4 +1,6 @@
 import { pool } from "../../config/db";
+import { calculateBudget } from "../../shared/finance/budget";
+import { round2, toMonthlyAmount } from "../../shared/finance/money";
 
 const CATEGORY_COLORS: Record<string, string> = {
   Food: "#00BAE5",
@@ -56,24 +58,29 @@ export async function getSafeToSpend(
       userId,
     ]),
     pool.query(
-      `SELECT COALESCE(SUM(
-         CASE WHEN billing_cycle = 'yearly' THEN amount / 12.0 ELSE amount END
-       ), 0) AS total_monthly
-       FROM subscriptions WHERE user_id = $1`,
+      "SELECT amount, billing_cycle FROM subscriptions WHERE user_id = $1",
       [userId],
     ),
   ]);
 
   const totalIncome = Number(userResult.rows[0]?.total_income ?? 0);
   const savingsGoal = Number(userResult.rows[0]?.savings_goal ?? 0);
-  const totalMonthlyBills = Number(subsResult.rows[0]?.total_monthly ?? 0);
-
-  const monthBudget = Math.max(
+  const totalMonthlyBills = subsResult.rows.reduce(
+    (sum: number, row: { amount: string; billing_cycle: string }) =>
+      sum +
+      toMonthlyAmount(
+        Number(row.amount),
+        row.billing_cycle as "monthly" | "yearly",
+      ),
     0,
-    totalIncome - savingsGoal - totalMonthlyBills,
   );
-  const weekBudget = Math.round(monthBudget / 4);
-  let dailyLimit = Math.round((monthBudget / 30) * 100) / 100;
+
+  const { monthBudget, weekBudget, dailyLimit, yearBudget } = calculateBudget({
+    totalIncome,
+    savingsGoal,
+    totalMonthlyBills,
+    asOfDate: new Date(),
+  });
 
   let budget: number;
   let start: Date;
@@ -89,7 +96,7 @@ export async function getSafeToSpend(
     start = new Date(now);
     start.setFullYear(now.getFullYear() - 1);
     start.setHours(0, 0, 0, 0);
-    budget = Math.round(dailyLimit * 365);
+    budget = yearBudget;
     periodLabel = "last 12 months";
   } else {
     const { start: mStart } = getMonthRange();
@@ -105,22 +112,10 @@ export async function getSafeToSpend(
   );
 
   const spent = Number(spendResult.rows[0].total);
-  const amount = budget - spent;
-
-  // Calculate daily limit dynamically if not set
-  if (dailyLimit === 0 && period === "monthly") {
-    const now = new Date();
-    const daysInMonth = new Date(
-      now.getFullYear(),
-      now.getMonth() + 1,
-      0,
-    ).getDate();
-    const daysRemaining = daysInMonth - now.getDate() + 1;
-    dailyLimit = daysRemaining > 0 ? Math.round(amount / daysRemaining) : 0;
-  }
+  const amount = round2(budget - spent);
 
   return {
-    amount: Math.round(amount * 100) / 100,
+    amount,
     currency: "INR",
     period: periodLabel,
     dailyLimit,
@@ -131,6 +126,9 @@ export async function getSpendingVelocity(userId: string) {
   const { start: thisStart } = getMonthRange();
   const { start: lastStart, end: lastEnd } = getMonthRange(1);
 
+  // Reads the cached value written by onboarding's calculateBudget() call, not a live
+  // recomputation — this stays consistent with getSafeToSpend as long as onboarding is
+  // the sole writer of user_budgets.
   const budgetResult = await pool.query(
     "SELECT month_budget FROM user_budgets WHERE user_id = $1",
     [userId],
@@ -274,6 +272,7 @@ export async function getSpendingAnalysis(userId: string) {
   const { start: weekStart, end: weekEnd } = getCurrentWeekRange();
   const { start: monthStart } = getMonthRange();
 
+  // Same cached-value rationale as getSpendingVelocity above.
   const budgetResult = await pool.query(
     "SELECT week_budget, month_budget FROM user_budgets WHERE user_id = $1",
     [userId],
