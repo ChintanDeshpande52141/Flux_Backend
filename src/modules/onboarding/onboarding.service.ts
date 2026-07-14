@@ -1,4 +1,6 @@
 import { pool } from "../../config/db";
+import { calculateBudget } from "../../shared/finance/budget";
+import { toMonthlyAmount } from "../../shared/finance/money";
 
 export interface OnboardingData {
   income_sources: { name: string; amount: number }[];
@@ -73,9 +75,26 @@ export async function saveOnboardingData(
     );
 
     // Auto-derive user_budgets from onboarding data
-    const monthBudget = Math.max(0, data.total_income - data.savings_goal);
-    const weekBudget = Math.round((monthBudget / 4) * 100) / 100;
-    const dailyLimit = Math.round((monthBudget / 30) * 100) / 100;
+    const subsResult = await client.query(
+      "SELECT amount, billing_cycle FROM subscriptions WHERE user_id = $1",
+      [userId],
+    );
+    const totalMonthlyBills = subsResult.rows.reduce(
+      (sum: number, row: { amount: string; billing_cycle: string }) =>
+        sum +
+        toMonthlyAmount(
+          Number(row.amount),
+          row.billing_cycle as "monthly" | "yearly",
+        ),
+      0,
+    );
+
+    const { monthBudget, weekBudget, dailyLimit } = calculateBudget({
+      totalIncome: data.total_income,
+      savingsGoal: data.savings_goal,
+      totalMonthlyBills,
+      asOfDate: new Date(),
+    });
 
     const updateResult = await client.query(
       `UPDATE user_budgets
@@ -147,19 +166,27 @@ export async function updateOnboardingData(
         userId,
       ]),
       pool.query(
-        `SELECT COALESCE(SUM(
-           CASE WHEN billing_cycle = 'yearly' THEN amount / 12.0 ELSE amount END
-         ), 0) AS total_monthly
-         FROM subscriptions WHERE user_id = $1`,
+        "SELECT amount, billing_cycle FROM subscriptions WHERE user_id = $1",
         [userId],
       ),
     ]);
     const income = Number(userRow.rows[0]?.total_income ?? 0);
     const savings = Number(userRow.rows[0]?.savings_goal ?? 0);
-    const bills = Number(subsRow.rows[0]?.total_monthly ?? 0);
-    const monthBudget = Math.max(0, income - savings - bills);
-    const weekBudget = Math.round((monthBudget / 4) * 100) / 100;
-    const dailyLimit = Math.round((monthBudget / 30) * 100) / 100;
+    const bills = subsRow.rows.reduce(
+      (sum: number, row: { amount: string; billing_cycle: string }) =>
+        sum +
+        toMonthlyAmount(
+          Number(row.amount),
+          row.billing_cycle as "monthly" | "yearly",
+        ),
+      0,
+    );
+    const { monthBudget, weekBudget, dailyLimit } = calculateBudget({
+      totalIncome: income,
+      savingsGoal: savings,
+      totalMonthlyBills: bills,
+      asOfDate: new Date(),
+    });
     const update = await pool.query(
       `UPDATE user_budgets SET month_budget = $1, week_budget = $2, daily_limit = $3, updated_at = NOW()
        WHERE user_id = $4`,
