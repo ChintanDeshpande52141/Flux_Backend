@@ -1,5 +1,6 @@
 import { pool } from "../../config/db";
 import { updateOnboardingData } from "../onboarding/onboarding.service";
+import { getSafeToSpend } from "../analytics/analytics.service";
 import { getPrimaryFreeModel } from "../../config/freeModels";
 import { lookupCategory } from "../../data/merchantCategories";
 import { z } from "zod";
@@ -509,13 +510,11 @@ export async function processUserMessage(
           break;
         }
         case "safe_to_spend": {
-          const r = await pool.query(
-            `SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=$1 AND transacted_at>=date_trunc('month',CURRENT_DATE)`,
-            [userId],
+          const { amount, dailyLimit } = await getSafeToSpend(
+            userId,
+            "monthly",
           );
-          const spent = Number(r.rows[0].total);
-          const safe = Math.max(0, totalIncome - savingsGoal - spent);
-          parsed.reply = `Your safe-to-spend is ₹${safe.toLocaleString("en-IN")} this month. (Income ₹${totalIncome.toLocaleString("en-IN")} − Savings ₹${savingsGoal.toLocaleString("en-IN")} − Spent ₹${spent.toLocaleString("en-IN")})`;
+          parsed.reply = `Your safe-to-spend is ₹${amount.toLocaleString("en-IN")} this month (₹${dailyLimit.toLocaleString("en-IN")}/day).`;
           break;
         }
         case "top_categories": {
