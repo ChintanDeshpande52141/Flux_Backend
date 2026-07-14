@@ -1,5 +1,6 @@
 import { pool } from "../../config/db";
 import { z } from "zod";
+import { round2, toMonthlyAmount } from "../../shared/finance/money";
 
 export const CreateSubscriptionSchema = z.object({
   name: z.string().min(1),
@@ -18,10 +19,6 @@ export const UpdateSubscriptionSchema = CreateSubscriptionSchema.partial();
 
 export type CreateSubscriptionInput = z.infer<typeof CreateSubscriptionSchema>;
 export type UpdateSubscriptionInput = z.infer<typeof UpdateSubscriptionSchema>;
-
-function toMonthly(amount: number, cycle: string): number {
-  return cycle === "yearly" ? amount / 12 : amount;
-}
 
 function mapRow(row: Record<string, unknown>) {
   return {
@@ -49,7 +46,11 @@ export async function getSubscriptions(userId: string) {
 
   const totalMonthly = rows.reduce(
     (sum: number, r: Record<string, unknown>) =>
-      sum + toMonthly(Number(r.amount), r.billing_cycle as string),
+      sum +
+      toMonthlyAmount(
+        Number(r.amount),
+        r.billing_cycle as "monthly" | "yearly",
+      ),
     0,
   );
 
@@ -77,8 +78,8 @@ export async function getSubscriptions(userId: string) {
   }));
 
   return {
-    totalMonthly: Math.round(totalMonthly * 100) / 100,
-    dailyImpact: Math.round(dailyImpact * 100) / 100,
+    totalMonthly: round2(totalMonthly),
+    dailyImpact: round2(dailyImpact),
     upcomingCount,
     categories,
   };
@@ -97,7 +98,7 @@ export async function createSubscription(
       userId,
       input.name,
       input.subtitle ?? null,
-      input.amount,
+      round2(input.amount),
       input.billingCycle,
       input.nextBillingDate,
       input.category,
