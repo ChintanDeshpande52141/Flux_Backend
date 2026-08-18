@@ -1,5 +1,6 @@
 import { pool } from '../../config/db';
 import { z } from 'zod';
+import { round2 } from '../../shared/finance/money';
 
 export const CreateTransactionSchema = z.object({
   merchant: z.string().min(1),
@@ -117,7 +118,7 @@ export async function createTransaction(userId: string, input: CreateTransaction
     `INSERT INTO transactions (user_id, merchant, category, amount, payment_type, transacted_at)
      VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING id, merchant, category, amount, payment_type, transacted_at`,
-    [userId, input.merchant, input.category, input.amount, input.paymentType, input.transactedAt]
+    [userId, input.merchant, input.category, round2(input.amount), input.paymentType, input.transactedAt]
   );
 
   const row = result.rows[0];
