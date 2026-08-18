@@ -1,4 +1,5 @@
 import { pool } from '../../config/db';
+import { round2 } from '../../shared/finance/money';
 
 export interface CreateExpenseData {
   amount: number;
@@ -92,7 +93,7 @@ export async function createExpense(
         userId,
         expense.description,
         expense.category,
-        expense.amount,
+        round2(expense.amount),
         expense.paymentType,
         now,
       ]
