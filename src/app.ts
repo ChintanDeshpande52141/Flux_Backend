@@ -8,6 +8,7 @@ import { analyticsRouter } from "./modules/analytics/analytics.router";
 import { chatRouter } from "./modules/chat/chat.router";
 import onboardingRouter from "./modules/onboarding/onboarding.router";
 import expensesRouter from "./modules/expenses/expenses.router";
+import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
 
@@ -78,5 +79,7 @@ app.use("/api/v1/expenses", expensesRouter);
 app.use((_req, res) => {
   res.status(404).json({ data: null, error: "Route not found" });
 });
+
+app.use(errorHandler);
 
 export default app;
