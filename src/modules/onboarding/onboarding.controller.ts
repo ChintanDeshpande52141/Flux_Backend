@@ -13,6 +13,7 @@ export async function handleGetOnboarding(
     const data = await getOnboardingData(req.userId, req.userEmail);
     res.json({ data, error: null });
   } catch (err) {
+    console.error("[handleGetOnboarding]", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -25,6 +26,7 @@ export async function handleSaveOnboarding(
     await saveOnboardingData(req.userId, req.userEmail, req.body);
     res.json({ data: { success: true }, error: null });
   } catch (err) {
+    console.error("[handleSaveOnboarding]", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -37,6 +39,7 @@ export async function handleUpdateOnboarding(
     await updateOnboardingData(req.userId, req.body);
     res.json({ data: { success: true }, error: null });
   } catch (err) {
+    console.error("[handleUpdateOnboarding]", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
