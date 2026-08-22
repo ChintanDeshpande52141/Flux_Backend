@@ -31,6 +31,7 @@ export async function handleGetMessages(
     const messages = await getMessages(req.userId);
     res.json({ data: { messages }, error: null });
   } catch (err) {
+    console.error("[handleGetMessages]", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -57,6 +58,7 @@ export async function handleSendMessage(
         .json({ data: null, error: "Use sender: user to send messages" });
     }
   } catch (err) {
+    console.error("[handleSendMessage]", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -69,6 +71,7 @@ export async function handleGetSuggestions(
     const suggestions = await getSuggestions(req.userId);
     res.json({ data: { suggestions }, error: null });
   } catch (err) {
+    console.error("[handleGetSuggestions]", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -85,6 +88,7 @@ export async function handleTestAI(req: Request, res: Response): Promise<void> {
     const data = await response.json();
     res.json({ data: { status: response.status, models: data }, error: null });
   } catch (err) {
-    res.status(500).json({ data: null, error: String(err) });
+    console.error("[handleTestAI]", err);
+    res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
