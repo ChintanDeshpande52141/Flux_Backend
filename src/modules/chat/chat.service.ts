@@ -3,6 +3,7 @@ import { updateOnboardingData } from "../onboarding/onboarding.service";
 import { getSafeToSpend } from "../analytics/analytics.service";
 import { getPrimaryFreeModel } from "../../config/freeModels";
 import { lookupCategory } from "../../data/merchantCategories";
+import { parseAmountShorthand, round2 } from "../../shared/finance/money";
 import { z } from "zod";
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY ?? "";
@@ -133,13 +134,19 @@ const AIResultSchema = z.union([
 
 // Regex-first parser — skips AI for simple expense patterns
 const QUICK_EXPENSE_REGEX =
-  /^(?:\+\s*)?(\d+(?:\.\d+)?)\s+(.+?)(?:\s+(?:via|through|by)\s+(upi|cash|credit|debit))?$/i;
+  /^(?:\+\s*)?(\d+(?:\.\d+)?k?)\s+(.+?)(?:\s+(?:via|through|by)\s+(upi|cash|credit|debit))?$/i;
 
 function tryQuickParse(text: string): AIResult | null {
   const match = text.match(QUICK_EXPENSE_REGEX);
   if (!match) return null;
-  const amount = parseFloat(match[1]);
   const merchant = match[2].trim();
+  const amount = parseAmountShorthand(match[1]);
+  if (amount === null) {
+    return {
+      intent: "clarify",
+      reply: `I couldn't understand the amount "${match[1]}". Could you re-enter it, e.g. "250" or "5k"?`,
+    };
+  }
   const rawPayment = match[3]?.toLowerCase() ?? "upi";
   const paymentTypeMap: Record<string, string> = {
     upi: "UPI",
@@ -388,7 +395,7 @@ export async function processUserMessage(
         const txRes = await client.query(
           `INSERT INTO transactions (user_id,merchant,category,amount,payment_type,transacted_at)
            VALUES ($1,$2,$3,$4,$5,$6) RETURNING id,merchant,category,amount,payment_type,transacted_at`,
-          [userId, exp.merchant, category, exp.amount, paymentType, now],
+          [userId, exp.merchant, category, round2(exp.amount), paymentType, now],
         );
         const aiMsg = await client.query(
           `INSERT INTO messages (user_id, text, sender) VALUES ($1,$2,'ai') RETURNING id, text, sender, created_at`,
