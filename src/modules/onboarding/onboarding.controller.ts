@@ -4,6 +4,7 @@ import {
   saveOnboardingData,
   updateOnboardingData,
 } from "./onboarding.service";
+import { OnboardingSaveSchema, OnboardingUpdateSchema } from "./onboarding.schema";
 
 export async function handleGetOnboarding(
   req: Request,
@@ -23,7 +24,13 @@ export async function handleSaveOnboarding(
   res: Response,
 ): Promise<void> {
   try {
-    await saveOnboardingData(req.userId, req.userEmail, req.body);
+    const parsed = OnboardingSaveSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ data: null, error: parsed.error.flatten() });
+      return;
+    }
+
+    await saveOnboardingData(req.userId, req.userEmail, parsed.data);
     res.json({ data: { success: true }, error: null });
   } catch (err) {
     console.error("[handleSaveOnboarding]", err);
@@ -36,7 +43,13 @@ export async function handleUpdateOnboarding(
   res: Response,
 ): Promise<void> {
   try {
-    await updateOnboardingData(req.userId, req.body);
+    const parsed = OnboardingUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ data: null, error: parsed.error.flatten() });
+      return;
+    }
+
+    await updateOnboardingData(req.userId, parsed.data);
     res.json({ data: { success: true }, error: null });
   } catch (err) {
     console.error("[handleUpdateOnboarding]", err);

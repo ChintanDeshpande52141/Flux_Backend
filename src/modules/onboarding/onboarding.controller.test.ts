@@ -48,7 +48,12 @@ describe("onboarding.controller error logging", () => {
 
   it("handleSaveOnboarding logs the caught error via console.error before responding", async () => {
     (saveOnboardingData as jest.Mock).mockRejectedValueOnce(new Error("save onboarding boom"));
-    const { req, res } = mockReqRes();
+    const { req, res } = mockReqRes({
+      income_sources: [{ name: "Salary", amount: 3000 }],
+      credit_cards: [],
+      total_income: 3000,
+      savings_goal: 500,
+    });
 
     await handleSaveOnboarding(req, res);
 
