@@ -14,7 +14,7 @@ dotenv.config();
 
 const app = express();
 
-// Environment-aware CORS configuration
+// Explicit per-deployment CORS allowlist (env-configured or the default dev list below)
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
   : [
@@ -30,6 +30,8 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
       "http://127.0.0.1:19006", // Expo alternative
     ];
 
+const corsDebugLog = process.env.DEBUG === "true" ? console.log : () => {};
+
 const corsOptions = {
   origin: (
     origin: string | undefined,
@@ -38,22 +40,17 @@ const corsOptions = {
     // Allow requests with no origin (like mobile apps or Postman)
     if (!origin) return callback(null, true);
 
-    // Log the origin for debugging
-    console.log("CORS - Origin:", origin);
-    console.log("CORS - Allowed origins:", allowedOrigins);
+    corsDebugLog("CORS - Origin:", origin);
+    corsDebugLog("CORS - Allowed origins:", allowedOrigins);
 
-    // For development, allow all origins
-    if (process.env.NODE_ENV !== "production") {
-      console.log("CORS - Allowing development origin:", origin);
+    // Always check the explicit allowlist — never fall through to allow-all
+    // based on NODE_ENV, so an unset/misspelled value can't open CORS wide.
+    if (allowedOrigins.includes(origin)) {
+      corsDebugLog("CORS - Allowing origin:", origin);
       callback(null, true);
     } else {
-      // In production, check allowed origins
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.log("CORS - Blocked origin:", origin);
-        callback(new Error("Not allowed by CORS"), false);
-      }
+      corsDebugLog("CORS - Blocked origin:", origin);
+      callback(new Error("Not allowed by CORS"), false);
     }
   },
   methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
