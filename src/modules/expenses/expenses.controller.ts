@@ -32,6 +32,7 @@ export async function handleCreateExpense(
 
     res.status(201).json({ data: result, error: null });
   } catch (err) {
+    console.error("[handleCreateExpense]", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -52,6 +53,7 @@ export async function handleGetExpenses(
 
     res.json({ data: { expenses }, error: null });
   } catch (err) {
+    console.error("[handleGetExpenses]", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
