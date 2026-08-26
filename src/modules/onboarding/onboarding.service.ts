@@ -21,7 +21,10 @@ export async function getOnboardingData(
        ON CONFLICT (id) DO NOTHING`,
       [userId, userEmail],
     );
-  } catch (error) {}
+  } catch (error) {
+    console.error("[getOnboardingData] failed to provision user row", error);
+    throw error;
+  }
 
   const result = await pool.query(
     `SELECT income_sources, credit_cards, total_income, savings_goal, onboarded_at
