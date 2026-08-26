@@ -171,18 +171,6 @@ export async function getSpendingVelocity(userId: string) {
   return { rate, target: 80, trend, percentChange, tip };
 }
 
-export async function getCreditHealth(userId: string) {
-  const result = await pool.query(
-    `SELECT score, status, change FROM credit_health
-     WHERE user_id = $1 ORDER BY recorded_at DESC LIMIT 1`,
-    [userId],
-  );
-
-  if (result.rowCount === 0) return null;
-  const row = result.rows[0];
-  return { score: row.score, status: row.status, change: row.change };
-}
-
 export async function getSpendingPulse(
   userId: string,
   period: "weekly" | "monthly" | "yearly" = "weekly",

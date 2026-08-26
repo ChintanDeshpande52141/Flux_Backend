@@ -1,7 +1,6 @@
 jest.mock("./analytics.service", () => ({
   getSafeToSpend: jest.fn(),
   getSpendingVelocity: jest.fn(),
-  getCreditHealth: jest.fn(),
   getSpendingPulse: jest.fn(),
   getSpendingAnalysis: jest.fn(),
   getTotals: jest.fn(),
@@ -10,7 +9,6 @@ jest.mock("./analytics.service", () => ({
 import {
   getSafeToSpend,
   getSpendingVelocity,
-  getCreditHealth,
   getSpendingPulse,
   getSpendingAnalysis,
   getTotals,
@@ -18,7 +16,6 @@ import {
 import {
   handleSafeToSpend,
   handleSpendingVelocity,
-  handleCreditHealth,
   handleSpendingPulse,
   handleSpendingAnalysis,
   handleTotals,
@@ -61,14 +58,6 @@ describe("analytics.controller error logging", () => {
         await handleSpendingVelocity(req, res);
       },
       getSpendingVelocity as jest.Mock,
-    ],
-    [
-      "handleCreditHealth",
-      async () => {
-        const { req, res } = mockReqRes();
-        await handleCreditHealth(req, res);
-      },
-      getCreditHealth as jest.Mock,
     ],
     [
       "handleSpendingPulse",
