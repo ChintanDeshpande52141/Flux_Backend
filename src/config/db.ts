@@ -3,10 +3,8 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-if (!process.env.DATABASE_URL) {
-  throw new Error('Missing DATABASE_URL in environment');
-}
-
+// DATABASE_URL presence is guaranteed by validateEnv() (config/env.ts), run
+// once at process start in server.ts before this module is ever imported.
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
