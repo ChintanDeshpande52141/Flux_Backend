@@ -546,6 +546,7 @@ export async function processUserMessage(
           break;
       }
     } catch (err) {
+      console.error("[processUserMessage] analytics query failed", err);
       parsed.reply = "I couldn't fetch your spending data. Please try again.";
     }
   }
