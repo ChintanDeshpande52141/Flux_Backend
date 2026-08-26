@@ -59,7 +59,9 @@ export async function getTransactions(
   paymentTypes: string,
   categories: string,
   start?: string,
-  end?: string
+  end?: string,
+  limit = 50,
+  offset = 0,
 ) {
   const values: unknown[] = [userId];
   let idx = 2;
@@ -94,11 +96,16 @@ export async function getTransactions(
     idx++;
   }
 
+  const limitIdx = idx;
+  const offsetIdx = idx + 1;
+  values.push(limit, offset);
+
   const query = `
     SELECT id, merchant, category, amount, payment_type, transacted_at
     FROM transactions
     WHERE ${conditions.join(' AND ')}
     ORDER BY transacted_at DESC
+    LIMIT $${limitIdx} OFFSET $${offsetIdx}
   `;
 
   const result = await pool.query(query, values);
