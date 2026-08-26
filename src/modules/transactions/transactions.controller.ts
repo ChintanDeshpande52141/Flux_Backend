@@ -38,6 +38,7 @@ export async function handleGetTransactions(
     );
     res.json({ data, error: null });
   } catch (err) {
+    console.error("[handleGetTransactions]", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
@@ -56,6 +57,7 @@ export async function handleCreateTransaction(
     const data = await createTransaction(req.userId, parsed.data);
     res.status(201).json({ data, error: null });
   } catch (err) {
+    console.error("[handleCreateTransaction]", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }
