@@ -1,3 +1,5 @@
+export {};
+
 const mockPoolQuery = jest.fn();
 
 jest.mock("../../config/db", () => ({
