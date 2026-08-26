@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import {
   getSafeToSpend,
   getSpendingVelocity,
-  getCreditHealth,
   getSpendingPulse,
   getSpendingAnalysis,
   getTotals,
@@ -34,25 +33,6 @@ export async function handleSpendingVelocity(
     res.json({ data, error: null });
   } catch (err) {
     console.error("[handleSpendingVelocity]", err);
-    res.status(500).json({ data: null, error: "Internal server error" });
-  }
-}
-
-export async function handleCreditHealth(
-  req: Request,
-  res: Response,
-): Promise<void> {
-  try {
-    const data = await getCreditHealth(req.userId);
-    if (!data) {
-      res
-        .status(404)
-        .json({ data: null, error: "No credit health record found" });
-      return;
-    }
-    res.json({ data, error: null });
-  } catch (err) {
-    console.error("[handleCreditHealth]", err);
     res.status(500).json({ data: null, error: "Internal server error" });
   }
 }

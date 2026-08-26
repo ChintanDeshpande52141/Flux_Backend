@@ -3,7 +3,6 @@ import { authenticate } from "../../middleware/auth";
 import {
   handleSafeToSpend,
   handleSpendingVelocity,
-  handleCreditHealth,
   handleSpendingPulse,
   handleSpendingAnalysis,
   handleTotals,
@@ -15,7 +14,6 @@ analyticsRouter.use(authenticate);
 
 analyticsRouter.get("/safe-to-spend", handleSafeToSpend);
 analyticsRouter.get("/spending-velocity", handleSpendingVelocity);
-analyticsRouter.get("/credit-health", handleCreditHealth);
 analyticsRouter.get("/spending-pulse", handleSpendingPulse);
 analyticsRouter.get("/spending-analysis", handleSpendingAnalysis);
 analyticsRouter.get("/totals", handleTotals);
