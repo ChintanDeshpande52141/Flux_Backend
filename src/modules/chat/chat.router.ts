@@ -15,4 +15,7 @@ chatRouter.use(authenticate);
 chatRouter.get("/messages", handleGetMessages);
 chatRouter.post("/messages", chatRateLimiter, handleSendMessage);
 chatRouter.get("/suggestions", handleGetSuggestions);
-chatRouter.get("/test-ai", handleTestAI);
+
+if (process.env.NODE_ENV !== "production") {
+  chatRouter.get("/test-ai", handleTestAI);
+}
